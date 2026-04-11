@@ -1,120 +1,131 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [formData, setFormData] = useState({
+    type: '',
+    description: '',
+    priority: '',
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleChange = (event) => {
+    const { name, value } = event.target
+    setFormData((previousValue) => ({
+      ...previousValue,
+      [name]: value,
+    }))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setIsSubmitting(true)
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    const token =
+      localStorage.getItem('token') ??
+      localStorage.getItem('accessToken') ??
+      localStorage.getItem('jwtToken')
+
+    const payload = {
+      type: formData.type,
+      description: formData.description,
+    }
+
+    if (formData.priority) {
+      payload.priority = formData.priority
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Request creation failed')
+      }
+
+      const data = await response.json()
+      setSuccessMessage('Solicitud creada correctamente. Redirigiendo...')
+      window.setTimeout(() => {
+        window.location.assign(`/requests/${data.id}`)
+      }, 800)
+    } catch {
+      setErrorMessage(
+        'No se pudo crear la solicitud en este momento. Inténtalo nuevamente.'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <main className="new-request-page">
+      <h1>Crear nueva solicitud</h1>
+      <form className="request-form" onSubmit={handleSubmit}>
+        <label htmlFor="type">Tipo</label>
+        <input
+          id="type"
+          name="type"
+          type="text"
+          value={formData.type}
+          onChange={handleChange}
+          required
+          disabled={isSubmitting}
+        />
+
+        <label htmlFor="description">Descripción</label>
+        <textarea
+          id="description"
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          rows={5}
+          required
+          disabled={isSubmitting}
+        />
+
+        <label htmlFor="priority">Prioridad (opcional)</label>
+        <select
+          id="priority"
+          name="priority"
+          value={formData.priority}
+          onChange={handleChange}
+          disabled={isSubmitting}
         >
-          Count is {count}
+          <option value="">Seleccionar</option>
+          <option value="low">Baja</option>
+          <option value="medium">Media</option>
+          <option value="high">Alta</option>
+        </select>
+
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creando solicitud...' : 'Crear solicitud'}
         </button>
-      </section>
+      </form>
 
-      <div className="ticks"></div>
+      {successMessage && (
+        <p className="message message--success" role="status">
+          {successMessage}
+        </p>
+      )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {errorMessage && (
+        <p className="message message--error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+    </main>
   )
 }
 
