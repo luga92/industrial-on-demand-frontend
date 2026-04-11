@@ -27,10 +27,11 @@ function App() {
     setSuccessMessage('')
     setErrorMessage('')
 
-    const token =
+    const storedToken =
       localStorage.getItem('token') ??
       localStorage.getItem('accessToken') ??
       localStorage.getItem('jwtToken')
+    const token = storedToken ? storedToken.replace(/^"(.*)"$/, '$1') : ''
 
     const payload = {
       type: formData.type,
@@ -42,11 +43,15 @@ function App() {
     }
 
     try {
+      if (!token) {
+        throw new Error('Missing token')
+      }
+
       const response = await fetch(`${API_BASE_URL}/requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       })
