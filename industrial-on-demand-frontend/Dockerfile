@@ -1,4 +1,4 @@
-# 1️⃣ Build stage
+# Build stage
 FROM node:20-alpine AS build
 
 WORKDIR /app
@@ -9,8 +9,7 @@ RUN npm install
 COPY industrial-on-demand-frontend/ .
 RUN npm run build
 
-
-# 2️⃣ Runtime stage
+# Runtime stage
 FROM node:20-alpine
 
 WORKDIR /app
@@ -22,4 +21,3 @@ COPY --from=build /app/dist ./dist
 EXPOSE 3000
 
 CMD ["serve", "-s", "dist", "-l", "3000"]
-``
