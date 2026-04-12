@@ -39,12 +39,6 @@ function App() {
   const hasToken = Boolean(getStoredToken())
 
   useEffect(() => {
-    if (isRootView && hasToken) {
-      window.location.replace(LIST_ROUTE)
-    }
-  }, [isRootView, hasToken])
-
-  useEffect(() => {
     if (isProtectedView && !hasToken) {
       window.location.replace(ROOT_ROUTE)
     }
@@ -178,8 +172,24 @@ function App() {
   if (isRootView) {
     if (hasToken) {
       return (
-        <main className="app-page">
-          <p>Redirigiendo...</p>
+        <main className="home-entry">
+          <section className="home-hero">
+            <h1>¿Qué necesitas hoy?</h1>
+            <div className="home-actions">
+              <a className="action-card action-card--primary" href={CREATE_ROUTE}>
+                <span className="action-card__eyebrow">Acción recomendada</span>
+                <h2>Crear nueva solicitud</h2>
+                <p>Inicia un nuevo requerimiento y recibe seguimiento desde el primer minuto.</p>
+                <span className="action-card__cta">Crear solicitud</span>
+              </a>
+              <a className="action-card action-card--secondary" href={LIST_ROUTE}>
+                <span className="action-card__eyebrow">Historial</span>
+                <h2>Ver mis solicitudes</h2>
+                <p>Revisa el estado de tus solicitudes activas y las ya resueltas.</p>
+                <span className="action-card__cta">Ir a mis solicitudes</span>
+              </a>
+            </div>
+          </section>
         </main>
       )
     }
