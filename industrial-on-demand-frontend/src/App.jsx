@@ -6,6 +6,7 @@ const ROOT_ROUTE = '/'
 const LIST_ROUTE = '/requests'
 const CREATE_ROUTE = '/requests/new'
 const LOGIN_ROUTE = '/login'
+const SIGNUP_ROUTE = '/signup'
 
 const getStoredToken = () => {
   const storedToken =
@@ -33,6 +34,8 @@ function App() {
   const pathname = window.location.pathname
   const isRootView = pathname === ROOT_ROUTE
   const isMyRequestsView = pathname === LIST_ROUTE
+  const isCreateRequestView = pathname === CREATE_ROUTE
+  const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
 
   useEffect(() => {
@@ -40,6 +43,12 @@ function App() {
       window.location.replace(LIST_ROUTE)
     }
   }, [isRootView, hasToken])
+
+  useEffect(() => {
+    if (isProtectedView && !hasToken) {
+      window.location.replace(ROOT_ROUTE)
+    }
+  }, [isProtectedView, hasToken])
 
   const [formData, setFormData] = useState({
     type: '',
@@ -54,7 +63,7 @@ function App() {
   const [requestsError, setRequestsError] = useState('')
 
   useEffect(() => {
-    if (!isMyRequestsView) {
+    if (!isMyRequestsView || !hasToken) {
       return
     }
 
@@ -68,7 +77,8 @@ function App() {
         const token = getStoredToken()
 
         if (!token) {
-          throw new Error('Missing token')
+          window.location.replace(ROOT_ROUTE)
+          return
         }
 
         const response = await fetch(`${API_BASE_URL}/requests`, {
@@ -105,7 +115,7 @@ function App() {
     return () => {
       isMounted = false
     }
-  }, [isMyRequestsView])
+  }, [isMyRequestsView, hasToken])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -134,7 +144,8 @@ function App() {
 
     try {
       if (!token) {
-        throw new Error('Missing token')
+        window.location.replace(ROOT_ROUTE)
+        return
       }
 
       const response = await fetch(`${API_BASE_URL}/requests`, {
@@ -174,14 +185,31 @@ function App() {
     }
 
     return (
-      <main className="app-page">
-        <section className="requests-page">
-          <h1>Bienvenido</h1>
-          <p>Necesitas iniciar sesión para continuar.</p>
-          <a className="cta-link" href={LOGIN_ROUTE}>
-            Ir a login
-          </a>
+      <main className="access-entry">
+        <section className="access-panel">
+          <p className="access-kicker">Servicio on-demand</p>
+          <h1>Resuelve tus solicitudes en minutos, con seguimiento en tiempo real.</h1>
+          <p className="access-copy">
+            Accede a una experiencia fluida para crear, gestionar y monitorear cada
+            solicitud desde un solo lugar.
+          </p>
+          <div className="access-actions">
+            <a className="access-button access-button--primary" href={LOGIN_ROUTE}>
+              Iniciar sesión
+            </a>
+            <a className="access-button access-button--secondary" href={SIGNUP_ROUTE}>
+              Crear cuenta
+            </a>
+          </div>
         </section>
+      </main>
+    )
+  }
+
+  if (isProtectedView && !hasToken) {
+    return (
+      <main className="app-page">
+        <p>Redirigiendo...</p>
       </main>
     )
   }

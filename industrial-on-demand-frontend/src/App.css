@@ -6,6 +6,71 @@
   box-sizing: border-box;
 }
 
+.access-entry {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
+.access-panel {
+  width: min(640px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 64px 40px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.access-kicker {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.access-panel h1 {
+  margin: 16px 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.1;
+}
+
+.access-copy {
+  max-width: 520px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+}
+
+.access-actions {
+  margin-top: 32px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.access-button {
+  min-width: 180px;
+  border-radius: 999px;
+  padding: 14px 24px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.access-button--primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.access-button--secondary {
+  border: 1px solid var(--border);
+  color: var(--text-h);
+}
+
 .requests-nav {
   display: flex;
   justify-content: flex-end;
