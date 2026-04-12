@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const ROOT_ROUTE = '/'
 const LIST_ROUTE = '/requests'
 const CREATE_ROUTE = '/requests/new'
+const LOGIN_ROUTE = '/login'
 
 const getStoredToken = () => {
   const storedToken =
@@ -29,7 +31,15 @@ const formatRequestDate = (dateValue) => {
 
 function App() {
   const pathname = window.location.pathname
+  const isRootView = pathname === ROOT_ROUTE
   const isMyRequestsView = pathname === LIST_ROUTE
+  const hasToken = Boolean(getStoredToken())
+
+  useEffect(() => {
+    if (isRootView && hasToken) {
+      window.location.replace(LIST_ROUTE)
+    }
+  }, [isRootView, hasToken])
 
   const [formData, setFormData] = useState({
     type: '',
@@ -152,6 +162,28 @@ function App() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isRootView) {
+    if (hasToken) {
+      return (
+        <main className="app-page">
+          <p>Redirigiendo...</p>
+        </main>
+      )
+    }
+
+    return (
+      <main className="app-page">
+        <section className="requests-page">
+          <h1>Bienvenido</h1>
+          <p>Necesitas iniciar sesión para continuar.</p>
+          <a className="cta-link" href={LOGIN_ROUTE}>
+            Ir a login
+          </a>
+        </section>
+      </main>
+    )
   }
 
   return (
