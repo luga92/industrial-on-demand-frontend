@@ -38,6 +38,8 @@ function App() {
   const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
   const [isAuthGateOpen, setIsAuthGateOpen] = useState(false)
+  const [requestDescription, setRequestDescription] = useState('')
+  const [createFlowStep, setCreateFlowStep] = useState('compose')
 
   useEffect(() => {
     if (isRootView && hasToken) {
@@ -51,14 +53,6 @@ function App() {
     }
   }, [isProtectedView, hasToken])
 
-  const [formData, setFormData] = useState({
-    type: '',
-    description: '',
-    priority: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
   const [requests, setRequests] = useState([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(false)
   const [requestsError, setRequestsError] = useState('')
@@ -118,61 +112,59 @@ function App() {
     }
   }, [isMyRequestsView, hasToken])
 
-  const handleChange = (event) => {
-    const { name, value } = event.target
-    setFormData((previousValue) => ({
-      ...previousValue,
-      [name]: value,
-    }))
-  }
-
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setIsSubmitting(true)
-    setSuccessMessage('')
-    setErrorMessage('')
-
+  const handleCreateRequest = async () => {
     const token = getStoredToken()
 
-    const payload = {
-      type: formData.type,
-      description: formData.description,
+    if (!token) {
+      window.location.replace(ROOT_ROUTE)
+      return
     }
 
-    if (formData.priority) {
-      payload.priority = formData.priority
+    const description = requestDescription.trim()
+
+    if (!description) {
+      return
     }
+
+    setCreateFlowStep('securing')
+    const transitionStart = Date.now()
 
     try {
-      if (!token) {
-        window.location.replace(ROOT_ROUTE)
-        return
-      }
-
       const response = await fetch(`${API_BASE_URL}/requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          type: 'general',
+          description,
+        }),
       })
 
       if (!response.ok) {
         throw new Error('Request creation failed')
       }
 
-      const data = await response.json()
-      setSuccessMessage('Solicitud creada correctamente. Redirigiendo...')
-      window.setTimeout(() => {
-        window.location.assign(`/requests/${data.id}`)
-      }, 800)
+      await response.json()
+
+      const elapsedMs = Date.now() - transitionStart
+      if (elapsedMs < 1400) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1400 - elapsedMs)
+        })
+      }
+
+      setCreateFlowStep('success')
+      setRequestDescription('')
     } catch {
-      setErrorMessage(
-        'No se pudo crear la solicitud en este momento. Inténtalo nuevamente.'
-      )
-    } finally {
-      setIsSubmitting(false)
+      const elapsedMs = Date.now() - transitionStart
+      if (elapsedMs < 1400) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1400 - elapsedMs)
+        })
+      }
+      setCreateFlowStep('failure')
     }
   }
 
@@ -308,60 +300,52 @@ function App() {
           )}
         </section>
       ) : (
-        <section className="new-request-page">
-          <h1>Crear nueva solicitud</h1>
-          <form className="request-form" onSubmit={handleSubmit}>
-            <label htmlFor="type">Tipo</label>
-            <input
-              id="type"
-              name="type"
-              type="text"
-              value={formData.type}
-              onChange={handleChange}
-              required
-              disabled={isSubmitting}
-            />
-
-            <label htmlFor="description">Descripción</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={5}
-              required
-              disabled={isSubmitting}
-            />
-
-            <label htmlFor="priority">Prioridad (opcional)</label>
-            <select
-              id="priority"
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            >
-              <option value="">Seleccionar</option>
-              <option value="low">Baja</option>
-              <option value="medium">Media</option>
-              <option value="high">Alta</option>
-            </select>
-
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando solicitud...' : 'Crear solicitud'}
-            </button>
-          </form>
-
-          {successMessage && (
-            <p className="message message--success" role="status">
-              {successMessage}
-            </p>
+        <section className="create-flow-page">
+          {createFlowStep === 'compose' && (
+            <div className="create-step create-step--compose">
+              <h1>¿Qué necesitas resolver hoy?</h1>
+              <textarea
+                value={requestDescription}
+                onChange={(event) => setRequestDescription(event.target.value)}
+                rows={8}
+                placeholder="Ejemplo: La línea de producción se detuvo y necesitamos revisión técnica en planta."
+              />
+              <button
+                type="button"
+                onClick={handleCreateRequest}
+                disabled={!requestDescription.trim()}
+              >
+                Continuar
+              </button>
+            </div>
           )}
 
-          {errorMessage && (
-            <p className="message message--error" role="alert">
-              {errorMessage}
-            </p>
+          {createFlowStep === 'securing' && (
+            <div className="create-step create-step--securing" role="status">
+              <div className="soft-loader" aria-hidden="true"></div>
+              <h1>Estamos preparando tu solicitud de forma segura…</h1>
+              <p>Protegiendo tu información</p>
+            </div>
+          )}
+
+          {createFlowStep === 'success' && (
+            <div className="create-step create-step--success">
+              <h1>✅ Solicitud creada</h1>
+              <p>Nuestro sistema ya está coordinando tu solicitud.</p>
+              <a className="create-step-link" href={LIST_ROUTE}>
+                Ver mis solicitudes
+              </a>
+            </div>
+          )}
+
+          {createFlowStep === 'failure' && (
+            <div className="create-step create-step--failure">
+              <h1>Tuvimos un problema.</h1>
+              <p>Inténtalo de nuevo en un momento.</p>
+              <button type="button" onClick={() => setCreateFlowStep('compose')}>
+                Intentar nuevamente
+              </button>
+            </div>
           )}
         </section>
       )}
