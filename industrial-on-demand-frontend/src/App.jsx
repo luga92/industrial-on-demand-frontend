@@ -37,6 +37,13 @@ function App() {
   const isCreateRequestView = pathname === CREATE_ROUTE
   const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
+  const [isAuthGateOpen, setIsAuthGateOpen] = useState(false)
+
+  useEffect(() => {
+    if (isRootView && hasToken) {
+      window.location.replace(LIST_ROUTE)
+    }
+  }, [isRootView, hasToken])
 
   useEffect(() => {
     if (isProtectedView && !hasToken) {
@@ -169,59 +176,84 @@ function App() {
     }
   }
 
+  const handleRootPrimaryAction = () => {
+    if (getStoredToken()) {
+      window.location.assign(CREATE_ROUTE)
+      return
+    }
+
+    setIsAuthGateOpen(true)
+  }
+
   if (isRootView) {
     if (hasToken) {
-      return (
-        <main className="home-entry">
-          <section className="home-hero">
-            <h1>¿Qué necesitas hoy?</h1>
-            <div className="home-actions">
-              <a className="action-card action-card--primary" href={CREATE_ROUTE}>
-                <span className="action-card__eyebrow">Acción recomendada</span>
-                <h2>Crear nueva solicitud</h2>
-                <p>Inicia un nuevo requerimiento y recibe seguimiento desde el primer minuto.</p>
-                <span className="action-card__cta">Crear solicitud</span>
-              </a>
-              <a className="action-card action-card--secondary" href={LIST_ROUTE}>
-                <span className="action-card__eyebrow">Historial</span>
-                <h2>Ver mis solicitudes</h2>
-                <p>Revisa el estado de tus solicitudes activas y las ya resueltas.</p>
-                <span className="action-card__cta">Ir a mis solicitudes</span>
-              </a>
-            </div>
-          </section>
-        </main>
-      )
+      return <main className="app-page" />
     }
 
     return (
-      <main className="access-entry">
-        <section className="access-panel">
-          <p className="access-kicker">Servicio on-demand</p>
-          <h1>Resuelve tus solicitudes en minutos, con seguimiento en tiempo real.</h1>
-          <p className="access-copy">
-            Accede a una experiencia fluida para crear, gestionar y monitorear cada
-            solicitud desde un solo lugar.
+      <main className="root-landing">
+        <section className="root-landing__content">
+          <h1>
+            Soporte industrial confiable.
+            <br />
+            Cuando lo necesitas.
+          </h1>
+          <p className="root-landing__subtitle">
+            Conectamos tu solicitud con técnicos verificados y especializados.
           </p>
-          <div className="access-actions">
-            <a className="access-button access-button--primary" href={LOGIN_ROUTE}>
-              Iniciar sesión
-            </a>
-            <a className="access-button access-button--secondary" href={SIGNUP_ROUTE}>
-              Crear cuenta
-            </a>
+          <div className="trust-points">
+            <div className="trust-item">
+              <span className="trust-item__icon" aria-hidden="true">
+                🔒
+              </span>
+              <span>Solicitudes protegidas</span>
+            </div>
+            <div className="trust-item">
+              <span className="trust-item__icon" aria-hidden="true">
+                ✓
+              </span>
+              <span>Profesionales verificados</span>
+            </div>
           </div>
+          <button
+            type="button"
+            className="root-cta"
+            onClick={handleRootPrimaryAction}
+          >
+            Crear solicitud
+          </button>
+          <p className="root-login-link">
+            ¿Ya tienes cuenta? <a href={LOGIN_ROUTE}>Iniciar sesión</a>
+          </p>
         </section>
+
+        {isAuthGateOpen && (
+          <section className="gate-overlay" aria-label="Acceso seguro">
+            <div
+              className="gate-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="auth-gate-title"
+            >
+              <h2 id="auth-gate-title">Protegemos tu solicitud</h2>
+              <p>Para continuar, inicia sesión o crea una cuenta segura</p>
+              <div className="gate-actions">
+                <a className="gate-button gate-button--primary" href={LOGIN_ROUTE}>
+                  Iniciar sesión
+                </a>
+                <a className="gate-button gate-button--secondary" href={SIGNUP_ROUTE}>
+                  Crear cuenta
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
     )
   }
 
   if (isProtectedView && !hasToken) {
-    return (
-      <main className="app-page">
-        <p>Redirigiendo...</p>
-      </main>
-    )
+    return <main className="app-page" />
   }
 
   return (
