@@ -7,6 +7,7 @@ const LIST_ROUTE = '/requests'
 const CREATE_ROUTE = '/requests/new'
 const LOGIN_ROUTE = '/login'
 const SIGNUP_ROUTE = '/signup'
+const REQUEST_SKELETON_ITEMS = [1, 2, 3]
 
 const getStoredToken = () => {
   const storedToken =
@@ -38,6 +39,7 @@ function App() {
   const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
   const [isAuthGateOpen, setIsAuthGateOpen] = useState(false)
+  const [isRootActionActive, setIsRootActionActive] = useState(false)
   const [requestDescription, setRequestDescription] = useState('')
   const [createFlowStep, setCreateFlowStep] = useState('compose')
 
@@ -95,7 +97,7 @@ function App() {
         if (isMounted) {
           setRequests([])
           setRequestsError(
-            'No se pudieron cargar las solicitudes en este momento. Inténtalo nuevamente.'
+            'Tuvimos un inconveniente al organizar tus solicitudes. Inténtalo nuevamente en un momento.'
           )
         }
       } finally {
@@ -169,6 +171,8 @@ function App() {
   }
 
   const handleRootPrimaryAction = () => {
+    setIsRootActionActive(true)
+
     if (getStoredToken()) {
       window.location.assign(CREATE_ROUTE)
       return
@@ -177,13 +181,19 @@ function App() {
     setIsAuthGateOpen(true)
   }
 
+  useEffect(() => {
+    if (isAuthGateOpen) {
+      setIsRootActionActive(false)
+    }
+  }, [isAuthGateOpen])
+
   if (isRootView) {
     if (hasToken) {
       return <main className="app-page" />
     }
 
     return (
-      <main className="root-landing">
+      <main className="root-landing view-shell">
         <section className="root-landing__content">
           <h1>
             Soporte industrial confiable.
@@ -209,10 +219,10 @@ function App() {
           </div>
           <button
             type="button"
-            className="root-cta"
+            className={`root-cta cta-animated ${isRootActionActive ? 'is-active' : ''}`}
             onClick={handleRootPrimaryAction}
           >
-            Crear solicitud
+            {isRootActionActive ? 'Preparando…' : 'Crear solicitud'}
           </button>
           <p className="root-login-link">
             ¿Ya tienes cuenta? <a href={LOGIN_ROUTE}>Iniciar sesión</a>
@@ -245,11 +255,11 @@ function App() {
   }
 
   if (isProtectedView && !hasToken) {
-    return <main className="app-page" />
+    return <main className="app-page view-shell" />
   }
 
   return (
-    <main className="app-page">
+    <main className="app-page view-shell">
       <nav className="requests-nav" aria-label="Navegación de solicitudes">
         <a href={LIST_ROUTE}>Mis solicitudes</a>
         <a href={CREATE_ROUTE}>Crear nueva solicitud</a>
@@ -259,7 +269,21 @@ function App() {
         <section className="requests-page">
           <h1>Mis solicitudes</h1>
 
-          {isLoadingRequests && <p>Cargando solicitudes...</p>}
+          {isLoadingRequests && (
+            <div className="requests-loading" role="status">
+              <p className="narrative-feedback">Organizando tu información…</p>
+              <ul className="skeleton-list" aria-hidden="true">
+                {REQUEST_SKELETON_ITEMS.map((item) => (
+                  <li key={item} className="skeleton-item">
+                    <span className="skeleton-line skeleton-line--short"></span>
+                    <span className="skeleton-line"></span>
+                    <span className="skeleton-line"></span>
+                    <span className="skeleton-line skeleton-line--medium"></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {!isLoadingRequests && requestsError && (
             <p className="message message--error" role="alert">
@@ -302,7 +326,7 @@ function App() {
       ) : (
         <section className="create-flow-page">
           {createFlowStep === 'compose' && (
-            <div className="create-step create-step--compose">
+            <div className="create-step create-step--compose step-transition">
               <h1>¿Qué necesitas resolver hoy?</h1>
               <textarea
                 value={requestDescription}
@@ -312,6 +336,7 @@ function App() {
               />
               <button
                 type="button"
+                className="cta-animated"
                 onClick={handleCreateRequest}
                 disabled={!requestDescription.trim()}
               >
@@ -321,15 +346,15 @@ function App() {
           )}
 
           {createFlowStep === 'securing' && (
-            <div className="create-step create-step--securing" role="status">
+            <div className="create-step create-step--securing step-transition" role="status">
               <div className="soft-loader" aria-hidden="true"></div>
               <h1>Estamos preparando tu solicitud de forma segura…</h1>
-              <p>Protegiendo tu información</p>
+              <p>Protegiendo y organizando tu información</p>
             </div>
           )}
 
           {createFlowStep === 'success' && (
-            <div className="create-step create-step--success">
+            <div className="create-step create-step--success step-transition">
               <h1>✅ Solicitud creada</h1>
               <p>Nuestro sistema ya está coordinando tu solicitud.</p>
               <a className="create-step-link" href={LIST_ROUTE}>
@@ -339,10 +364,14 @@ function App() {
           )}
 
           {createFlowStep === 'failure' && (
-            <div className="create-step create-step--failure">
+            <div className="create-step create-step--failure step-transition">
               <h1>Tuvimos un problema.</h1>
               <p>Inténtalo de nuevo en un momento.</p>
-              <button type="button" onClick={() => setCreateFlowStep('compose')}>
+              <button
+                type="button"
+                className="cta-animated"
+                onClick={() => setCreateFlowStep('compose')}
+              >
                 Intentar nuevamente
               </button>
             </div>
