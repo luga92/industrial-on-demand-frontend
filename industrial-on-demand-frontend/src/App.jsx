@@ -6,7 +6,6 @@ const ROOT_ROUTE = '/'
 const LIST_ROUTE = '/requests'
 const CREATE_ROUTE = '/requests/new'
 const LOGIN_ROUTE = '/login'
-const SIGNUP_ROUTE = '/signup'
 const REQUEST_SKELETON_ITEMS = [1, 2, 3]
 
 const getStoredToken = () => {
@@ -38,16 +37,8 @@ function App() {
   const isCreateRequestView = pathname === CREATE_ROUTE
   const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
-  const [isAuthGateOpen, setIsAuthGateOpen] = useState(false)
-  const [isRootActionActive, setIsRootActionActive] = useState(false)
   const [requestDescription, setRequestDescription] = useState('')
   const [createFlowStep, setCreateFlowStep] = useState('compose')
-
-  useEffect(() => {
-    if (isRootView && hasToken) {
-      window.location.replace(LIST_ROUTE)
-    }
-  }, [isRootView, hasToken])
 
   useEffect(() => {
     if (isProtectedView && !hasToken) {
@@ -170,86 +161,42 @@ function App() {
     }
   }
 
-  const handleRootPrimaryAction = () => {
-    setIsRootActionActive(true)
-
-    if (getStoredToken()) {
-      window.location.assign(CREATE_ROUTE)
-      return
-    }
-
-    setIsAuthGateOpen(true)
-  }
-
-  useEffect(() => {
-    if (isAuthGateOpen) {
-      setIsRootActionActive(false)
-    }
-  }, [isAuthGateOpen])
-
   if (isRootView) {
     if (hasToken) {
-      return <main className="app-page" />
+      window.location.replace(LIST_ROUTE)
+      return null
     }
 
     return (
-      <main className="root-landing view-shell">
-        <section className="root-landing__content">
+      <main className="app-page premium-root">
+        <section className="hero">
           <h1>
             Soporte industrial confiable.
             <br />
             Cuando lo necesitas.
           </h1>
-          <p className="root-landing__subtitle">
+
+          <p className="hero-subtitle">
             Conectamos tu solicitud con técnicos verificados y especializados.
           </p>
-          <div className="trust-points">
-            <div className="trust-item">
-              <span className="trust-item__icon" aria-hidden="true">
-                🔒
-              </span>
-              <span>Solicitudes protegidas</span>
-            </div>
-            <div className="trust-item">
-              <span className="trust-item__icon" aria-hidden="true">
-                ✓
-              </span>
-              <span>Profesionales verificados</span>
-            </div>
+
+          <div className="trust-indicators">
+            <span>🔒 Solicitudes protegidas</span>
+            <span>✅ Profesionales verificados</span>
           </div>
+
           <button
-            type="button"
-            className={`root-cta cta-animated ${isRootActionActive ? 'is-active' : ''}`}
-            onClick={handleRootPrimaryAction}
+            className="cta-primary"
+            onClick={() => window.location.assign(CREATE_ROUTE)}
           >
-            {isRootActionActive ? 'Preparando…' : 'Crear solicitud'}
+            Crear solicitud
           </button>
-          <p className="root-login-link">
-            ¿Ya tienes cuenta? <a href={LOGIN_ROUTE}>Iniciar sesión</a>
+
+          <p className="secondary-action">
+            ¿Ya tienes cuenta?{' '}
+            <a href={LOGIN_ROUTE}>Iniciar sesión</a>
           </p>
         </section>
-
-        {isAuthGateOpen && (
-          <section className="gate-overlay" aria-label="Acceso seguro">
-            <div
-              className="gate-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="auth-gate-title"
-            >
-              <h2 id="auth-gate-title">Protegemos tu solicitud</h2>
-              <p>Para continuar, inicia sesión o crea una cuenta segura</p>
-              <div className="gate-actions">
-                <a className="gate-button gate-button--primary" href={LOGIN_ROUTE}>
-                  Iniciar sesión
-                </a>
-                <a className="gate-button gate-button--secondary" href={SIGNUP_ROUTE}>
-                  Crear cuenta
-                </a>
-              </div>
-            </div>
-          </section>
-        )}
       </main>
     )
   }

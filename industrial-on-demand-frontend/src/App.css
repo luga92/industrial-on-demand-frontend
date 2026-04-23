@@ -98,6 +98,71 @@
   font-weight: 700;
 }
 
+.premium-root {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 18px 40px;
+  background: radial-gradient(circle at 20% 0%, #1f2937 0%, #0d111d 45%, #05060c 100%);
+}
+
+.hero {
+  width: min(580px, 100%);
+  text-align: left;
+}
+
+.hero h1 {
+  margin: 0;
+  color: #f9fafb;
+  font-size: clamp(2.2rem, 9vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+  margin: 18px 0 0;
+  color: #cbd5e1;
+  font-size: clamp(1rem, 3.8vw, 1.2rem);
+  line-height: 1.45;
+  max-width: 34ch;
+}
+
+.trust-indicators {
+  margin: 28px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.cta-primary {
+  margin-top: 32px;
+  width: 100%;
+  max-width: 360px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: #fff;
+  padding: 16px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-action {
+  margin-top: 16px;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+}
+
+.secondary-action a {
+  color: #e9d5ff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
 .gate-overlay {
   position: fixed;
   inset: 0;
@@ -326,7 +391,17 @@
     padding-inline: 28px;
   }
 
+  .premium-root {
+    padding-inline: 28px;
+  }
+
   .trust-points {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+  }
+
+  .trust-indicators {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 14px 22px;
