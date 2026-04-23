@@ -1,12 +1,38 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const ROOT_ROUTE = '/'
+const OPTIONS_ROUTE = '/options'
 const LIST_ROUTE = '/requests'
-const CREATE_ROUTE = '/requests/new'
+const ACCOUNT_ROUTE = '/account'
 const LOGIN_ROUTE = '/login'
+const SIGNUP_ROUTE = '/signup'
+
 const REQUEST_SKELETON_ITEMS = [1, 2, 3]
+
+const CATEGORIES = [
+  { name: 'Electricidad', icon: '⚡' },
+  { name: 'Mecánica', icon: '🛠️' },
+  { name: 'Electrónica', icon: '🔌' },
+  { name: 'Fontanería', icon: '🚰' },
+  { name: 'Carpintería', icon: '🪚' },
+  { name: 'Refrigeración', icon: '❄️' },
+  { name: 'Pintura', icon: '🎨' },
+  { name: 'Soldadura', icon: '🔥' },
+  { name: 'Hidráulica', icon: '💧' },
+  { name: 'Neumática', icon: '🌬️' },
+  { name: 'Instrumentista', icon: '📏' },
+  { name: 'Fletes', icon: '🚚' },
+  { name: 'Albañilería', icon: '🧱' },
+]
+
+const NAV_ITEMS = [
+  { key: 'inicio', label: 'Inicio', icon: '🏠' },
+  { key: 'opciones', label: 'Opciones', icon: '🧩' },
+  { key: 'actividad', label: 'Actividad', icon: '🕒' },
+  { key: 'cuenta', label: 'Cuenta', icon: '👤' },
+]
 
 const getStoredToken = () => {
   const storedToken =
@@ -15,6 +41,20 @@ const getStoredToken = () => {
     localStorage.getItem('jwtToken')
 
   return storedToken ? storedToken.replace(/^"(.*)"$/, '$1') : ''
+}
+
+const getSectionFromPath = (path) => {
+  if (path === LIST_ROUTE) return 'actividad'
+  if (path === OPTIONS_ROUTE) return 'opciones'
+  if (path === ACCOUNT_ROUTE) return 'cuenta'
+  return 'inicio'
+}
+
+const getPathFromSection = (section) => {
+  if (section === 'actividad') return LIST_ROUTE
+  if (section === 'opciones') return OPTIONS_ROUTE
+  if (section === 'cuenta') return ACCOUNT_ROUTE
+  return ROOT_ROUTE
 }
 
 const formatRequestDate = (dateValue) => {
@@ -32,26 +72,35 @@ const formatRequestDate = (dateValue) => {
 
 function App() {
   const pathname = window.location.pathname
-  const isRootView = pathname === ROOT_ROUTE
-  const isMyRequestsView = pathname === LIST_ROUTE
-  const isCreateRequestView = pathname === CREATE_ROUTE
-  const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
-  const [requestDescription, setRequestDescription] = useState('')
-  const [createFlowStep, setCreateFlowStep] = useState('compose')
-
-  useEffect(() => {
-    if (isProtectedView && !hasToken) {
-      window.location.replace(ROOT_ROUTE)
-    }
-  }, [isProtectedView, hasToken])
-
+  const [activeSection, setActiveSection] = useState(() => getSectionFromPath(pathname))
+  const [intent, setIntent] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [description, setDescription] = useState('')
+  const [requestStep, setRequestStep] = useState('idle')
   const [requests, setRequests] = useState([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(false)
-  const [requestsError, setRequestsError] = useState('')
+  const [requestsMessage, setRequestsMessage] = useState('')
 
   useEffect(() => {
-    if (!isMyRequestsView || !hasToken) {
+    if (!hasToken && pathname !== ROOT_ROUTE) {
+      window.location.replace(ROOT_ROUTE)
+    }
+  }, [hasToken, pathname])
+
+  useEffect(() => {
+    if (!hasToken) {
+      return
+    }
+
+    const nextPath = getPathFromSection(activeSection)
+    if (window.location.pathname !== nextPath) {
+      window.history.replaceState(null, '', nextPath)
+    }
+  }, [activeSection, hasToken])
+
+  useEffect(() => {
+    if (!hasToken || activeSection !== 'actividad') {
       return
     }
 
@@ -59,11 +108,10 @@ function App() {
 
     const loadRequests = async () => {
       setIsLoadingRequests(true)
-      setRequestsError('')
+      setRequestsMessage('')
 
       try {
         const token = getStoredToken()
-
         if (!token) {
           window.location.replace(ROOT_ROUTE)
           return
@@ -76,19 +124,25 @@ function App() {
         })
 
         if (!response.ok) {
-          throw new Error('Requests load failed')
+          throw new Error('Activity load failed')
         }
 
         const data = await response.json()
+        const normalized = Array.isArray(data) ? data : []
+        const sorted = [...normalized].sort((a, b) => {
+          const aTime = new Date(a.createdAt).getTime()
+          const bTime = new Date(b.createdAt).getTime()
+          return bTime - aTime
+        })
 
         if (isMounted) {
-          setRequests(Array.isArray(data) ? data : [])
+          setRequests(sorted)
         }
       } catch {
         if (isMounted) {
           setRequests([])
-          setRequestsError(
-            'Tuvimos un inconveniente al organizar tus solicitudes. Inténtalo nuevamente en un momento.'
+          setRequestsMessage(
+            'Estamos teniendo un retraso al cargar tu actividad. Intenta de nuevo en un momento.'
           )
         }
       } finally {
@@ -103,23 +157,30 @@ function App() {
     return () => {
       isMounted = false
     }
-  }, [isMyRequestsView, hasToken])
+  }, [activeSection, hasToken])
+
+  const openCategoryFlow = (category) => {
+    setSelectedCategory(category)
+    setRequestStep('describe')
+    if (!description && intent.trim()) {
+      setDescription(intent.trim())
+    }
+  }
 
   const handleCreateRequest = async () => {
     const token = getStoredToken()
+    const detail = description.trim()
 
     if (!token) {
       window.location.replace(ROOT_ROUTE)
       return
     }
 
-    const description = requestDescription.trim()
-
-    if (!description) {
+    if (!selectedCategory || !detail) {
       return
     }
 
-    setCreateFlowStep('securing')
+    setRequestStep('securing')
     const transitionStart = Date.now()
 
     try {
@@ -130,8 +191,8 @@ function App() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          type: 'general',
-          description,
+          type: selectedCategory,
+          description: detail,
         }),
       })
 
@@ -148,8 +209,9 @@ function App() {
         })
       }
 
-      setCreateFlowStep('success')
-      setRequestDescription('')
+      setRequestStep('success')
+      setDescription('')
+      setIntent('')
     } catch {
       const elapsedMs = Date.now() - transitionStart
       if (elapsedMs < 1400) {
@@ -157,16 +219,21 @@ function App() {
           window.setTimeout(resolve, 1400 - elapsedMs)
         })
       }
-      setCreateFlowStep('failure')
+
+      setRequestStep('failure')
     }
   }
 
-  if (isRootView) {
-    if (hasToken) {
-      window.location.replace(LIST_ROUTE)
-      return null
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('jwtToken')
+    window.location.replace(ROOT_ROUTE)
+  }
 
+  const activityItems = useMemo(() => requests, [requests])
+
+  if (!hasToken) {
     return (
       <main className="app-page premium-root">
         <section className="hero">
@@ -185,40 +252,136 @@ function App() {
             <span>✅ Profesionales verificados</span>
           </div>
 
-          <button
-            className="cta-primary"
-            onClick={() => window.location.assign(CREATE_ROUTE)}
-          >
+          <button className="cta-primary" onClick={() => window.location.assign(LOGIN_ROUTE)}>
             Crear solicitud
           </button>
 
           <p className="secondary-action">
-            ¿Ya tienes cuenta?{' '}
-            <a href={LOGIN_ROUTE}>Iniciar sesión</a>
+            ¿Ya tienes cuenta? <a href={LOGIN_ROUTE}>Iniciar sesión</a>
+          </p>
+          <p className="secondary-action">
+            ¿Primera vez? <a href={SIGNUP_ROUTE}>Crear cuenta</a>
           </p>
         </section>
       </main>
     )
   }
 
-  if (isProtectedView && !hasToken) {
-    return <main className="app-page view-shell" />
-  }
-
   return (
-    <main className="app-page view-shell">
-      <nav className="requests-nav" aria-label="Navegación de solicitudes">
-        <a href={LIST_ROUTE}>Mis solicitudes</a>
-        <a href={CREATE_ROUTE}>Crear nueva solicitud</a>
-      </nav>
+    <main className="ondemand-app">
+      <section className="section-content">
+        {activeSection === 'inicio' && (
+          <section className="panel panel--inicio">
+            <h1>¿Qué necesitas hoy?</h1>
+            <input
+              className="intent-input"
+              placeholder="Describe el servicio que necesitas"
+              value={intent}
+              onChange={(event) => setIntent(event.target.value)}
+            />
+            {intent.trim() && (
+              <button
+                type="button"
+                className="nudge-button"
+                onClick={() => setActiveSection('opciones')}
+              >
+                Continuar en Opciones
+              </button>
+            )}
+          </section>
+        )}
 
-      {isMyRequestsView ? (
-        <section className="requests-page">
-          <h1>Mis solicitudes</h1>
+        {activeSection === 'opciones' && (
+          <section className="panel panel--options">
+            <h2>Opciones</h2>
+            <p className="panel-subtitle">Elige una categoría para iniciar tu solicitud.</p>
+            <div className="category-grid">
+              {CATEGORIES.map((category) => (
+                <button
+                  type="button"
+                  key={category.name}
+                  className={`category-card ${selectedCategory === category.name ? 'is-selected' : ''}`}
+                  onClick={() => openCategoryFlow(category.name)}
+                >
+                  <span className="category-icon" aria-hidden="true">
+                    {category.icon}
+                  </span>
+                  <span>{category.name}</span>
+                </button>
+              ))}
+            </div>
 
-          {isLoadingRequests && (
-            <div className="requests-loading" role="status">
-              <p className="narrative-feedback">Organizando tu información…</p>
+            {requestStep !== 'idle' && (
+              <section className="request-flow-card">
+                {requestStep === 'describe' && (
+                  <div className="flow-step">
+                    <p className="flow-badge">{selectedCategory}</p>
+                    <h3>Describe qué necesitas resolver</h3>
+                    <textarea
+                      rows={6}
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="Cuéntanos el contexto para coordinar tu solicitud."
+                    />
+                    <button
+                      type="button"
+                      className="cta-primary cta-primary--compact"
+                      onClick={handleCreateRequest}
+                      disabled={!description.trim()}
+                    >
+                      Continuar
+                    </button>
+                  </div>
+                )}
+
+                {requestStep === 'securing' && (
+                  <div className="flow-step flow-step--status" role="status">
+                    <div className="soft-loader" aria-hidden="true"></div>
+                    <h3>Preparando tu solicitud…</h3>
+                    <p>Estamos coordinando tu solicitud de forma segura.</p>
+                  </div>
+                )}
+
+                {requestStep === 'success' && (
+                  <div className="flow-step flow-step--status">
+                    <h3>Solicitud en marcha</h3>
+                    <p>Estamos coordinando tu solicitud.</p>
+                    <button
+                      type="button"
+                      className="cta-primary cta-primary--compact"
+                      onClick={() => {
+                        setRequestStep('idle')
+                        setSelectedCategory('')
+                        setActiveSection('actividad')
+                      }}
+                    >
+                      Ver actividad
+                    </button>
+                  </div>
+                )}
+
+                {requestStep === 'failure' && (
+                  <div className="flow-step flow-step--status">
+                    <h3>Tuvimos un retraso</h3>
+                    <p>Vuelve a intentarlo en un momento.</p>
+                    <button
+                      type="button"
+                      className="cta-primary cta-primary--compact"
+                      onClick={() => setRequestStep('describe')}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+          </section>
+        )}
+
+        {activeSection === 'actividad' && (
+          <section className="panel panel--activity">
+            <h2>Actividad</h2>
+            {isLoadingRequests && (
               <ul className="skeleton-list" aria-hidden="true">
                 {REQUEST_SKELETON_ITEMS.map((item) => (
                   <li key={item} className="skeleton-item">
@@ -229,102 +392,67 @@ function App() {
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+            )}
 
-          {!isLoadingRequests && requestsError && (
-            <p className="message message--error" role="alert">
-              {requestsError}
-            </p>
-          )}
+            {!isLoadingRequests && requestsMessage && (
+              <p className="message message--error">{requestsMessage}</p>
+            )}
 
-          {!isLoadingRequests && !requestsError && requests.length === 0 && (
-            <div className="empty-state">
-              <p>No tienes solicitudes registradas todavía.</p>
-              <a className="cta-link" href={CREATE_ROUTE}>
-                Crear nueva solicitud
-              </a>
-            </div>
-          )}
+            {!isLoadingRequests && !requestsMessage && activityItems.length === 0 && (
+              <p className="empty-copy">Aún no tienes actividad. Tu próxima solicitud aparecerá aquí.</p>
+            )}
 
-          {!isLoadingRequests && !requestsError && requests.length > 0 && (
-            <ul className="request-list">
-              {requests.map((request) => (
-                <li key={request.id}>
-                  <a className="request-item" href={`/requests/${request.id}`}>
-                    <span>
-                      <strong>ID:</strong> {request.id}
-                    </span>
-                    <span>
-                      <strong>Tipo:</strong> {request.type}
-                    </span>
-                    <span>
-                      <strong>Estado:</strong> {request.status}
-                    </span>
-                    <span>
-                      <strong>Fecha:</strong> {formatRequestDate(request.createdAt)}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : (
-        <section className="create-flow-page">
-          {createFlowStep === 'compose' && (
-            <div className="create-step create-step--compose step-transition">
-              <h1>¿Qué necesitas resolver hoy?</h1>
-              <textarea
-                value={requestDescription}
-                onChange={(event) => setRequestDescription(event.target.value)}
-                rows={8}
-                placeholder="Ejemplo: La línea de producción se detuvo y necesitamos revisión técnica en planta."
-              />
-              <button
-                type="button"
-                className="cta-animated"
-                onClick={handleCreateRequest}
-                disabled={!requestDescription.trim()}
-              >
-                Continuar
-              </button>
-            </div>
-          )}
+            {!isLoadingRequests && !requestsMessage && activityItems.length > 0 && (
+              <ul className="activity-list">
+                {activityItems.map((request) => (
+                  <li key={request.id} className="activity-item">
+                    <div>
+                      <strong>{request.type}</strong>
+                      <p>{formatRequestDate(request.createdAt)}</p>
+                    </div>
+                    <span className="status-pill">{request.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
-          {createFlowStep === 'securing' && (
-            <div className="create-step create-step--securing step-transition" role="status">
-              <div className="soft-loader" aria-hidden="true"></div>
-              <h1>Estamos preparando tu solicitud de forma segura…</h1>
-              <p>Protegiendo y organizando tu información</p>
+        {activeSection === 'cuenta' && (
+          <section className="panel panel--account">
+            <h2>Cuenta</h2>
+            <div className="account-block">
+              <h3>Info básica</h3>
+              <p>Perfil activo</p>
             </div>
-          )}
+            <div className="account-block">
+              <h3>Seguridad</h3>
+              <p>Autenticación protegida con sesión vigente.</p>
+            </div>
+            <div className="account-block">
+              <h3>Preferencias</h3>
+              <p>Notificaciones y experiencia personalizable.</p>
+            </div>
+            <button type="button" className="logout-button" onClick={handleLogout}>
+              Cerrar sesión
+            </button>
+          </section>
+        )}
+      </section>
 
-          {createFlowStep === 'success' && (
-            <div className="create-step create-step--success step-transition">
-              <h1>✅ Solicitud creada</h1>
-              <p>Nuestro sistema ya está coordinando tu solicitud.</p>
-              <a className="create-step-link" href={LIST_ROUTE}>
-                Ver mis solicitudes
-              </a>
-            </div>
-          )}
-
-          {createFlowStep === 'failure' && (
-            <div className="create-step create-step--failure step-transition">
-              <h1>Tuvimos un problema.</h1>
-              <p>Inténtalo de nuevo en un momento.</p>
-              <button
-                type="button"
-                className="cta-animated"
-                onClick={() => setCreateFlowStep('compose')}
-              >
-                Intentar nuevamente
-              </button>
-            </div>
-          )}
-        </section>
-      )}
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={`bottom-nav__item ${activeSection === item.key ? 'is-active' : ''}`}
+            onClick={() => setActiveSection(item.key)}
+          >
+            <span aria-hidden="true">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </main>
   )
 }
