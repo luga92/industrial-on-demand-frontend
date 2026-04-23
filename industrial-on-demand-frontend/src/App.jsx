@@ -6,6 +6,7 @@ const ROOT_ROUTE = '/'
 const LIST_ROUTE = '/requests'
 const CREATE_ROUTE = '/requests/new'
 const LOGIN_ROUTE = '/login'
+const REQUEST_SKELETON_ITEMS = [1, 2, 3]
 
 const getStoredToken = () => {
   const storedToken =
@@ -33,28 +34,24 @@ function App() {
   const pathname = window.location.pathname
   const isRootView = pathname === ROOT_ROUTE
   const isMyRequestsView = pathname === LIST_ROUTE
+  const isCreateRequestView = pathname === CREATE_ROUTE
+  const isProtectedView = isMyRequestsView || isCreateRequestView
   const hasToken = Boolean(getStoredToken())
+  const [requestDescription, setRequestDescription] = useState('')
+  const [createFlowStep, setCreateFlowStep] = useState('compose')
 
   useEffect(() => {
-    if (isRootView && hasToken) {
-      window.location.replace(LIST_ROUTE)
+    if (isProtectedView && !hasToken) {
+      window.location.replace(ROOT_ROUTE)
     }
-  }, [isRootView, hasToken])
+  }, [isProtectedView, hasToken])
 
-  const [formData, setFormData] = useState({
-    type: '',
-    description: '',
-    priority: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
   const [requests, setRequests] = useState([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(false)
   const [requestsError, setRequestsError] = useState('')
 
   useEffect(() => {
-    if (!isMyRequestsView) {
+    if (!isMyRequestsView || !hasToken) {
       return
     }
 
@@ -68,7 +65,8 @@ function App() {
         const token = getStoredToken()
 
         if (!token) {
-          throw new Error('Missing token')
+          window.location.replace(ROOT_ROUTE)
+          return
         }
 
         const response = await fetch(`${API_BASE_URL}/requests`, {
@@ -90,7 +88,7 @@ function App() {
         if (isMounted) {
           setRequests([])
           setRequestsError(
-            'No se pudieron cargar las solicitudes en este momento. Inténtalo nuevamente.'
+            'Tuvimos un inconveniente al organizar tus solicitudes. Inténtalo nuevamente en un momento.'
           )
         }
       } finally {
@@ -105,89 +103,110 @@ function App() {
     return () => {
       isMounted = false
     }
-  }, [isMyRequestsView])
+  }, [isMyRequestsView, hasToken])
 
-  const handleChange = (event) => {
-    const { name, value } = event.target
-    setFormData((previousValue) => ({
-      ...previousValue,
-      [name]: value,
-    }))
-  }
-
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setIsSubmitting(true)
-    setSuccessMessage('')
-    setErrorMessage('')
-
+  const handleCreateRequest = async () => {
     const token = getStoredToken()
 
-    const payload = {
-      type: formData.type,
-      description: formData.description,
+    if (!token) {
+      window.location.replace(ROOT_ROUTE)
+      return
     }
 
-    if (formData.priority) {
-      payload.priority = formData.priority
+    const description = requestDescription.trim()
+
+    if (!description) {
+      return
     }
+
+    setCreateFlowStep('securing')
+    const transitionStart = Date.now()
 
     try {
-      if (!token) {
-        throw new Error('Missing token')
-      }
-
       const response = await fetch(`${API_BASE_URL}/requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          type: 'general',
+          description,
+        }),
       })
 
       if (!response.ok) {
         throw new Error('Request creation failed')
       }
 
-      const data = await response.json()
-      setSuccessMessage('Solicitud creada correctamente. Redirigiendo...')
-      window.setTimeout(() => {
-        window.location.assign(`/requests/${data.id}`)
-      }, 800)
+      await response.json()
+
+      const elapsedMs = Date.now() - transitionStart
+      if (elapsedMs < 1400) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1400 - elapsedMs)
+        })
+      }
+
+      setCreateFlowStep('success')
+      setRequestDescription('')
     } catch {
-      setErrorMessage(
-        'No se pudo crear la solicitud en este momento. Inténtalo nuevamente.'
-      )
-    } finally {
-      setIsSubmitting(false)
+      const elapsedMs = Date.now() - transitionStart
+      if (elapsedMs < 1400) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1400 - elapsedMs)
+        })
+      }
+      setCreateFlowStep('failure')
     }
   }
 
   if (isRootView) {
     if (hasToken) {
-      return (
-        <main className="app-page">
-          <p>Redirigiendo...</p>
-        </main>
-      )
+      window.location.replace(LIST_ROUTE)
+      return null
     }
 
     return (
-      <main className="app-page">
-        <section className="requests-page">
-          <h1>Bienvenido</h1>
-          <p>Necesitas iniciar sesión para continuar.</p>
-          <a className="cta-link" href={LOGIN_ROUTE}>
-            Ir a login
-          </a>
+      <main className="app-page premium-root">
+        <section className="hero">
+          <h1>
+            Soporte industrial confiable.
+            <br />
+            Cuando lo necesitas.
+          </h1>
+
+          <p className="hero-subtitle">
+            Conectamos tu solicitud con técnicos verificados y especializados.
+          </p>
+
+          <div className="trust-indicators">
+            <span>🔒 Solicitudes protegidas</span>
+            <span>✅ Profesionales verificados</span>
+          </div>
+
+          <button
+            className="cta-primary"
+            onClick={() => window.location.assign(CREATE_ROUTE)}
+          >
+            Crear solicitud
+          </button>
+
+          <p className="secondary-action">
+            ¿Ya tienes cuenta?{' '}
+            <a href={LOGIN_ROUTE}>Iniciar sesión</a>
+          </p>
         </section>
       </main>
     )
   }
 
+  if (isProtectedView && !hasToken) {
+    return <main className="app-page view-shell" />
+  }
+
   return (
-    <main className="app-page">
+    <main className="app-page view-shell">
       <nav className="requests-nav" aria-label="Navegación de solicitudes">
         <a href={LIST_ROUTE}>Mis solicitudes</a>
         <a href={CREATE_ROUTE}>Crear nueva solicitud</a>
@@ -197,7 +216,21 @@ function App() {
         <section className="requests-page">
           <h1>Mis solicitudes</h1>
 
-          {isLoadingRequests && <p>Cargando solicitudes...</p>}
+          {isLoadingRequests && (
+            <div className="requests-loading" role="status">
+              <p className="narrative-feedback">Organizando tu información…</p>
+              <ul className="skeleton-list" aria-hidden="true">
+                {REQUEST_SKELETON_ITEMS.map((item) => (
+                  <li key={item} className="skeleton-item">
+                    <span className="skeleton-line skeleton-line--short"></span>
+                    <span className="skeleton-line"></span>
+                    <span className="skeleton-line"></span>
+                    <span className="skeleton-line skeleton-line--medium"></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {!isLoadingRequests && requestsError && (
             <p className="message message--error" role="alert">
@@ -238,60 +271,57 @@ function App() {
           )}
         </section>
       ) : (
-        <section className="new-request-page">
-          <h1>Crear nueva solicitud</h1>
-          <form className="request-form" onSubmit={handleSubmit}>
-            <label htmlFor="type">Tipo</label>
-            <input
-              id="type"
-              name="type"
-              type="text"
-              value={formData.type}
-              onChange={handleChange}
-              required
-              disabled={isSubmitting}
-            />
-
-            <label htmlFor="description">Descripción</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={5}
-              required
-              disabled={isSubmitting}
-            />
-
-            <label htmlFor="priority">Prioridad (opcional)</label>
-            <select
-              id="priority"
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            >
-              <option value="">Seleccionar</option>
-              <option value="low">Baja</option>
-              <option value="medium">Media</option>
-              <option value="high">Alta</option>
-            </select>
-
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando solicitud...' : 'Crear solicitud'}
-            </button>
-          </form>
-
-          {successMessage && (
-            <p className="message message--success" role="status">
-              {successMessage}
-            </p>
+        <section className="create-flow-page">
+          {createFlowStep === 'compose' && (
+            <div className="create-step create-step--compose step-transition">
+              <h1>¿Qué necesitas resolver hoy?</h1>
+              <textarea
+                value={requestDescription}
+                onChange={(event) => setRequestDescription(event.target.value)}
+                rows={8}
+                placeholder="Ejemplo: La línea de producción se detuvo y necesitamos revisión técnica en planta."
+              />
+              <button
+                type="button"
+                className="cta-animated"
+                onClick={handleCreateRequest}
+                disabled={!requestDescription.trim()}
+              >
+                Continuar
+              </button>
+            </div>
           )}
 
-          {errorMessage && (
-            <p className="message message--error" role="alert">
-              {errorMessage}
-            </p>
+          {createFlowStep === 'securing' && (
+            <div className="create-step create-step--securing step-transition" role="status">
+              <div className="soft-loader" aria-hidden="true"></div>
+              <h1>Estamos preparando tu solicitud de forma segura…</h1>
+              <p>Protegiendo y organizando tu información</p>
+            </div>
+          )}
+
+          {createFlowStep === 'success' && (
+            <div className="create-step create-step--success step-transition">
+              <h1>✅ Solicitud creada</h1>
+              <p>Nuestro sistema ya está coordinando tu solicitud.</p>
+              <a className="create-step-link" href={LIST_ROUTE}>
+                Ver mis solicitudes
+              </a>
+            </div>
+          )}
+
+          {createFlowStep === 'failure' && (
+            <div className="create-step create-step--failure step-transition">
+              <h1>Tuvimos un problema.</h1>
+              <p>Inténtalo de nuevo en un momento.</p>
+              <button
+                type="button"
+                className="cta-animated"
+                onClick={() => setCreateFlowStep('compose')}
+              >
+                Intentar nuevamente
+              </button>
+            </div>
           )}
         </section>
       )}
